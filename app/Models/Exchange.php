@@ -16,5 +16,6 @@ class Exchange extends Model
         'currency',
         'type',
         'isin',
+        'code'
     ];
 }
