@@ -32,7 +32,7 @@ class ExchangeController extends Controller
         // Apply the search term across all columns if query is provided
         if (!empty($query)) {
             $exchanges->where(function ($q) use ($query) {
-                $q->where('code', 'like', '%' . $query . '%')
+                $q->where('code', 'like', '%' . $query . '%');
                //   ->orWhere('name', 'like', '%' . $query . '%');
                 //   ->orWhere('country', 'like', '%' . $query . '%')
                 //   ->orWhere('exchange', 'like', '%' . $query . '%')
