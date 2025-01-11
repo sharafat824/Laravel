@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use GuzzleHttp\Client;
 use App\Models\Exchange;
 use Illuminate\Http\Request;
+use App\Jobs\StoreExchangeDataJob;
 use Illuminate\Support\Facades\Http;
 
 class ExchangeController extends Controller
@@ -53,28 +55,83 @@ class ExchangeController extends Controller
     
     public function fetchAndStore()
     {
-        $url = 'https://eodhd.com/api/exchange-symbol-list/hk?api_token=6481a43f1b06b8.89762580&fmt=json';
-
-        $response = Http::retry(3, 1000)->timeout(120)->get($url);        if ($response->successful()) {
-            $data = $response->json();
-
-            foreach ($data as $item) {
-                Exchange::updateOrCreate(
-                    ['code' => $item['Code']],
-                    [
-                        'name' => $item['Name'] ?? null,
-                        'country' => $item['Country'] ?? null,
-                        'exchange' => $item['Exchange'] ?? null,
-                        'currency' => $item['Currency'] ?? null,
-                        'type' => $item['Type'] ?? null,
-                        'isin' => $item['Isin'] ?? null,
-                    ]
-                );
+        // First, delete all existing records in the Exchange table
+        // Exchange::truncate();
+        \Log::info('start');
+        $url = 'https://eodhd.com/api/exchange-symbol-list/us?api_token=6481a43f1b06b8.89762580&fmt=json';
+    
+        try {
+            $client = new Client();
+            $buffer = '';
+            $incompleteBuffer = ''; // To store any incomplete JSON data across chunks
+    
+            $response = $client->request('GET', $url, [
+                'stream' => true,
+                'timeout' => 300,
+            ]);
+    
+            // Get the body as a stream
+            $stream = $response->getBody();
+    
+            while (!$stream->eof()) {
+                $bodyChunk = $stream->read(1024 * 1024);
+                $buffer .= $bodyChunk;
+    
+                // Append any incomplete buffer from the previous chunk
+                $buffer = $incompleteBuffer . $buffer;
+    
+                // Check if the buffer forms a complete JSON array
+                while (preg_match('/^\[.*\]$/s', $buffer) && $this->isValidJson($buffer)) {
+                    \Log::error('buffer ' . $buffer);
+                    $data = json_decode($buffer, true);
+                    if (is_array($data)) {
+                        collect($data)->chunk(1000)->each(function ($chunk) {
+                            StoreExchangeDataJob::dispatch($chunk)->delay(now()->addSeconds(5));
+                        });
+                    }else{
+                        \Log::error('not array');
+                    }
+                    $buffer = ''; // Clear buffer after successful parsing
+                }
+    
+                // If the buffer is not complete yet, store the last part for the next iteration
+                $incompleteBuffer = $this->getIncompleteJson($buffer);
+    
+                // Clear the complete part of the buffer
+                $buffer = '';
             }
-
+    
             return response()->json(['message' => 'Data successfully saved!']);
-        } else {
+        } catch (\Exception $e) {
+            // Log and return error response
+            \Log::error('Error fetching and storing data: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to fetch data'], 500);
         }
     }
+  
+    private function getIncompleteJson($buffer)
+{
+    $lastOpenBracket = strrpos($buffer, '[');
+    $lastCloseBracket = strrpos($buffer, ']');
+
+    if ($lastOpenBracket !== false && $lastCloseBracket === false) {
+        // Incomplete JSON: opening bracket without closing one
+        return substr($buffer, $lastOpenBracket);
+    }
+
+    if ($lastOpenBracket !== false && $lastCloseBracket !== false && $lastCloseBracket > $lastOpenBracket) {
+        // Complete JSON: return empty as we have a complete JSON
+        return '';
+    }
+
+    // If the last close bracket is found before the opening bracket, it's malformed
+    return '';
+}
+    
+    private function isValidJson($string): bool
+    {
+        json_decode($string);
+        return json_last_error() === JSON_ERROR_NONE;
+    }
+    
 }
