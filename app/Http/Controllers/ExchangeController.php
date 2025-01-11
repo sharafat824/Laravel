@@ -33,17 +33,17 @@ class ExchangeController extends Controller
         if (!empty($query)) {
             $exchanges->where(function ($q) use ($query) {
                 $q->where('code', 'like', '%' . $query . '%')
-                  ->orWhere('name', 'like', '%' . $query . '%')
-                  ->orWhere('country', 'like', '%' . $query . '%')
-                  ->orWhere('exchange', 'like', '%' . $query . '%')
-                  ->orWhere('currency', 'like', '%' . $query . '%')
-                  ->orWhere('type', 'like', '%' . $query . '%')
-                  ->orWhere('isin', 'like', '%' . $query . '%');
+                  ->orWhere('name', 'like', '%' . $query . '%');
+                //   ->orWhere('country', 'like', '%' . $query . '%')
+                //   ->orWhere('exchange', 'like', '%' . $query . '%')
+                //   ->orWhere('currency', 'like', '%' . $query . '%')
+                //   ->orWhere('type', 'like', '%' . $query . '%')
+                //   ->orWhere('isin', 'like', '%' . $query . '%');
             });
         }
     
         // Paginate the results (100 records per page)
-        $results = $exchanges->paginate(100);
+        $results = $exchanges->paginate(25);
     
         // Return the paginated response
         return response()->json([
