@@ -33,7 +33,7 @@ class ExchangeController extends Controller
         if (!empty($query)) {
             $exchanges->where(function ($q) use ($query) {
                 $q->where('code', 'like', '%' . $query . '%')
-                  ->orWhere('name', 'like', '%' . $query . '%');
+               //   ->orWhere('name', 'like', '%' . $query . '%');
                 //   ->orWhere('country', 'like', '%' . $query . '%')
                 //   ->orWhere('exchange', 'like', '%' . $query . '%')
                 //   ->orWhere('currency', 'like', '%' . $query . '%')
