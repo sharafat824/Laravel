@@ -68,68 +68,74 @@ class ExchangePriceController extends Controller
      */
     public function show(Request $request)
     {
+        $request->validate([
+            'code' => 'required|string',
+            'country' => 'required|string',
+        ]);
 
         // Retrieve the exchange by the provided code
         $row = Exchange::where("code", $request->code)->first();
+
         if ($row) {
             // Check if the 'has_price' field is less than 24 hours old
-            if ($row->has_price && Carbon::parse($row->has_price)->diffInHours(Carbon::now()) < 24) {
+            if ($row->price_status == 'done' && Carbon::parse($row->price_created_at)->diffInHours(Carbon::now()) < 24) {
                 // If 'has_price' is within 24 hours, fetch data from the database
                 $data = ExchangePrice::where('exchange_id', $row->id)->get();
                 return response()->json($data); // Return the data from the database
             } else {
                 // If 'has_price' is older than 24 hours, fetch data from the live API
-                    $apiKey = env('EODHD_API_KEY');
-                    $url = "https://eodhd.com/api/eod/{$request->code}.{$request->country}";
+                $apiKey = env('EODHD_API_KEY');
+                $url = "https://eodhd.com/api/eod/{$request->code}.{$request->country}";
 
-                    // Make an HTTP GET request to the API
-                        $response = Http::get($url, [
-                        'api_token' => $apiKey,
-                        'fmt' => "json",
-                    ]);
+                // Make an HTTP GET request to the API
+                $response = Http::get($url, [
+                    'api_token' => $apiKey,
+                    'fmt' => "json",
+                ]);
 
                 // Check if the request was successful
-                    if ($response->successful()) {
-                        $data = $response->json();
-                        // Transform data into the format suitable for your database
-                        $formattedData = array_map(function ($item ) use ($row) {
+                if ($response->successful()) {
+                    $data = $response->json();
+                    // Transform data into the format suitable for your database
+                    $formattedData = array_map(function ($item) use ($row) {
                         $item['exchange_id'] = $row->id;
                         return $item;
-                        }, $data);
+                    }, $data);
 
-                        // Dispatch the job to insert data in chunks
-                        InsertExchangePricesJob::dispatch($formattedData);
-                        return $formattedData;
-                    }
+                    // Dispatch the job to insert data in chunks
+                    InsertExchangePricesJob::dispatch($formattedData, $row->id);
+                }
 
-                    // Update the 'has_price' field with the current timestamp to indicate it was updated
-                    $row->has_price = Carbon::now();
-                    $row->save();
+
+                // Update the 'has_price' field with the current timestamp to indicate it was updated
+                $row->price_status = "processing";
+                $row->price_created_at = Carbon::now();
+                $row->save();
+
+                return $formattedData;
             }
-    }
+        }
 
-    return response()->json(['error' => 'Exchange not found'], 404);
+        return response()->json(['error' => 'Exchange not found'], 404);
 
-       $row =  Exchange::where("code",$request->code)->first();
-       if($row && $row->has_price < Carbon::now()){
-         $data =  ExchangePrice::where('exchange_id',$row->id)->get();
-          return $data;
-       }
-       else
-       {
-       
-       }
-
-    
-    return $this->fetchAndSavePrices($row?$row->id:1,$request->code.'.'.$request->country);
-
-    
-    return response()->json(['error' => 'Failed to fetch data from API'], 500);
-
-        return $request;
-        
-        // Dispatch the job
-        InsertExchangePricesJob::dispatch($data);
+//        $row = Exchange::where("code", $request->code)->first();
+//        if ($row && $row->has_price < Carbon::now()) {
+//            $data = ExchangePrice::where('exchange_id', $row->id)->get();
+//            return $data;
+//        } else {
+//
+//        }
+//
+//
+//        return $this->fetchAndSavePrices($row ? $row->id : 1, $request->code . '.' . $request->country);
+//
+//
+//        return response()->json(['error' => 'Failed to fetch data from API'], 500);
+//
+//        return $request;
+//
+//        // Dispatch the job
+//        InsertExchangePricesJob::dispatch($data);
     }
 
     /**

@@ -2,12 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Models\Exchange;
 use App\Models\ExchangePrice;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 
 class InsertExchangePricesJob implements ShouldQueue
 {
@@ -19,15 +21,17 @@ class InsertExchangePricesJob implements ShouldQueue
      * @var array
      */
     protected $data;
+    private int $exchangeId;
 
     /**
      * Create a new job instance.
      *
      * @param array $data
      */
-    public function __construct(array $data)
+    public function __construct(array $data, int $exchangeId)
     {
         $this->data = $data;
+        $this->exchangeId = $exchangeId;
     }
 
     /**
@@ -44,5 +48,11 @@ class InsertExchangePricesJob implements ShouldQueue
             // Insert the chunk into the database
             ExchangePrice::insert($chunk);
         }
+
+        Exchange::where("id", $this->exchangeId)
+            ->update([
+               'price_status' => 'done',
+            ]);
+
     }
 }
