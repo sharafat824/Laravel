@@ -104,15 +104,18 @@ class ExchangePriceController extends Controller
 
                     // Dispatch the job to insert data in chunks
                     InsertExchangePricesJob::dispatch($formattedData, $row->id);
+
+
+                    // Update the 'has_price' field with the current timestamp to indicate it was updated
+                    $row->price_status = "processing";
+                    $row->price_created_at = Carbon::now();
+                    $row->save();
+
+                    return $formattedData;
                 }
 
+                return $response->json();
 
-                // Update the 'has_price' field with the current timestamp to indicate it was updated
-                $row->price_status = "processing";
-                $row->price_created_at = Carbon::now();
-                $row->save();
-
-                return $formattedData;
             }
         }
 
