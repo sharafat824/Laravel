@@ -16,6 +16,13 @@ class ExchangePrice extends Model
         'volume',
         'exchange_id'
     ];
-
-    protected $hidden = ['created_at', 'updated_at'];
+    protected $casts = [
+        'adjusted_close' => 'float',
+        'close' => 'float',
+        'high' => 'float',
+        'low' => 'float',
+        'open' => 'float',
+        'volume' => 'float',
+    ];
+    protected $hidden = ['created_at', 'updated_at', 'exchange_id', 'id'];
 }
