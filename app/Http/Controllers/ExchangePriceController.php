@@ -159,14 +159,14 @@ class ExchangePriceController extends Controller
                     // $row->save();
 
 
-                $index = $this->getStockIndex($data);
-                return ["stocks"=> $formattedData,"stock_count"=> count(($formattedData)) , "index"=> $index ,'index_count'=>count($index)];
+                    $index = $this->getStockIndex($data);
+                    return ["stocks"=> $formattedData,"stock_count"=> count(($formattedData)) , "index"=> $index ,'index_count'=>count($index)];
 
                 }
 
                 return $response->json();
 
-            }
+            // }
         }
 
         return response()->json(['error' => 'Exchange not found'], 404);
