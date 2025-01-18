@@ -63,11 +63,52 @@ class ExchangePriceController extends Controller
         return [];
     }
 
+
+    function getStockIndex($stockPrices=[]) {
+
+
+         // If 'has_price' is older than 24 hours, fetch data from the live API
+         $apiKey = env('EODHD_API_KEY');
+         $url = "https://eodhd.com/api/eod/GSPC.INDX";
+
+         // Make an HTTP GET request to the API
+        $response = Http::get($url, [
+             'api_token' => $apiKey,
+             'fmt' => "json",
+         ]);
+
+
+         // Check if the request was successful
+         if ($response->successful()) {
+            $benchmarkIndexex = $response->json();
+            $result = [];
+            foreach ($stockPrices as $stockPrice) {
+                // Search for the matching date in benchmarkIndexex
+                foreach ($benchmarkIndexex as $benchmarkIndex) {
+                    if ($stockPrice['date'] === $benchmarkIndex['date']) {
+                        // Calculate the division of close values
+                        $division = ($stockPrice['close'] / $benchmarkIndex['close'])  * ((int)env('RANDOM_VAL',1));
+            
+                        // Push the result to the new array
+                        $result[] = [
+                            Carbon::parse($stockPrice['date'])->timestamp,  // Convert date to timestamp
+                            $division                                      // The divided value
+                        ];
+                    }
+                }
+            }
+
+            return $result;
+        }
+
+        
+    }
     /**
      * Display the specified resource.
      */
     public function show(Request $request)
     {
+
         $request->validate([
             'code' => 'required|string',
             'country' => 'required|string',
@@ -97,21 +138,30 @@ class ExchangePriceController extends Controller
                 if ($response->successful()) {
                     $data = $response->json();
                     // Transform data into the format suitable for your database
-                    $formattedData = array_map(function ($item) use ($row) {
-                        $item['exchange_id'] = $row->id;
-                        return $item;
+                    $formattedData = array_map(function ($item) {
+                        return [
+                            strtotime($item['date']), // Convert date to timestamp
+                            $item['open'],
+                            $item['high'],
+                            $item['low'],
+                            $item['close'],
+                            $item['volume']
+                        ];
                     }, $data);
 
                     // Dispatch the job to insert data in chunks
-                    InsertExchangePricesJob::dispatch($formattedData, $row->id);
+                    // InsertExchangePricesJob::dispatch($formattedData, $row->id);
 
 
                     // Update the 'has_price' field with the current timestamp to indicate it was updated
-                    $row->price_status = "processing";
-                    $row->price_created_at = Carbon::now();
-                    $row->save();
+                    // $row->price_status = "processing";
+                    // $row->price_created_at = Carbon::now();
+                    // $row->save();
 
-                    return $formattedData;
+
+                $index = $this->getStockIndex($data);
+                return ["stocks"=> $formattedData,"stock_count"=> count(($formattedData)) , "index"=> $index ,'index_count'=>count($index)];
+
                 }
 
                 return $response->json();
