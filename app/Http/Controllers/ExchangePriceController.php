@@ -119,11 +119,11 @@ class ExchangePriceController extends Controller
 
         if ($row) {
             // Check if the 'has_price' field is less than 24 hours old
-            if ($row->price_status == 'done' && Carbon::parse($row->price_created_at)->diffInHours(Carbon::now()) < 24) {
-                // If 'has_price' is within 24 hours, fetch data from the database
-                $data = ExchangePrice::where('exchange_id', $row->id)->get();
-                return response()->json($data); // Return the data from the database
-            } else {
+            // if ($row->price_status == 'done' && Carbon::parse($row->price_created_at)->diffInHours(Carbon::now()) < 24) {
+            //     // If 'has_price' is within 24 hours, fetch data from the database
+            //     $data = ExchangePrice::where('exchange_id', $row->id)->get();
+            //     return response()->json($data); // Return the data from the database
+            // } else {
                 // If 'has_price' is older than 24 hours, fetch data from the live API
                 $apiKey = env('EODHD_API_KEY');
                 $url = "https://eodhd.com/api/eod/{$request->code}.{$request->country}";
