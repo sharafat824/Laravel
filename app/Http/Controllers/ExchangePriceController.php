@@ -6,7 +6,7 @@ use App\Models\ExchangePrice;
 use Illuminate\Http\Request;
 use App\Jobs\InsertExchangePricesJob;
 use App\Models\Exchange;
-use Illuminate\Support\Carbon;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 class ExchangePriceController extends Controller
 {
@@ -75,6 +75,8 @@ class ExchangePriceController extends Controller
         $response = Http::get($url, [
              'api_token' => $apiKey,
              'fmt' => "json",
+             'from'=>Carbon::today()->subDays(100)->format('Y-m-d'),
+             'to'=>Carbon::today()->subDays(0)->format('Y-m-d')
          ]);
 
 
@@ -132,6 +134,8 @@ class ExchangePriceController extends Controller
                 $response = Http::get($url, [
                     'api_token' => $apiKey,
                     'fmt' => "json",
+                    'from'=>Carbon::today()->subDays(100)->format('Y-m-d'),
+                    'to'=>Carbon::today()->subDays(0)->format('Y-m-d')
                 ]);
 
                 // Check if the request was successful
